@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ stock.symbol }} Details</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+    <link rel="stylesheet" href="{% static 'assets/css/stock_detail.css' %}">
+    <style id="stock-detail-inline-fallback">
+
+
+    </style>
+</head>
+<body class="stock-detail-body">
+    <div class="container-fluid detail-container py-4 py-lg-5">
+        <section class="hero-card shadow-sm mb-4">
+            <div class="d-flex flex-column flex-xl-row justify-content-between gap-4">
+                <div class="hero-main">
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb mb-3 detail-breadcrumb">
+                            <li class="breadcrumb-item">
+                                <a href="{{ dashboard_url }}" class="text-decoration-none">Market Dashboard</a>
+                            </li>
+                            <li class="breadcrumb-item active" aria-current="page">Equity Analysis</li>
+                        </ol>
+                    </nav>
+
+                    <div class="eyebrow">
+                        {{ company_profile.company_name|default:stock.company_name|default:stock.symbol }}
+                    </div>
+
+                    <div class="d-flex flex-wrap align-items-end gap-3 mb-2">
+                        <h1 class="display-4 fw-bold mb-0 symbol-heading">{{ stock.symbol }}</h1>
+                        <div class="identity-meta">
+                            <span>{{ company_profile.exchange }}</span>
+                            <span>•</span>
+                            <span>{{ company_profile.sector }}</span>
+                            <span>•</span>
+                            <span>{{ company_profile.industry }}</span>
+                        </div>
+                    </div>
+
+                    <p class="hero-subtitle mb-3">
+                        AI-assisted directional view using price action, market context, and recent Finnhub news stored on site.
+                    </p>
+
+                    <div class="hero-price-row">
+                        {% if quote %}
+                            <div class="hero-price">${{ quote.price|floatformat:2 }}</div>
+                            <div class="hero-change {% if quote.change >= 0 %}positive{% else %}negative{% endif %}">
+                                {{ quote.percent_change|floatformat:2 }}%
+                            </div>
+                            <div class="hero-time">Quote synced {{ market_snapshot.updated_utc }}</div>
+                        {% else %}
+                            <div class="hero-time">Live quote unavailable</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="hero-chip-row">
+                        <span class="meta-chip {{ market_snapshot.tone|default:'neutral' }}">Market {{ market_snapshot.label }}</span>
+                        <span class="meta-chip">{{ market_snapshot.detail }}</span>
+                        <span class="meta-chip">{{ company_profile.market_cap_display }} market cap</span>
+                        <span class="meta-chip">{{ market_snapshot.timezone_note }}</span>
+                    </div>
+                </div>
+
+                <div class="hero-actions-panel">
+                    <div class="hero-actions-title">Quick actions</div>
+                    <div class="hero-actions-grid">
+                        <a href="{{ dashboard_url }}" class="hero-action-btn">Back to dashboard</a>
+                        <button
+                            type="button"
+                            class="hero-action-btn"
+                            id="refreshAnalysisBtn"
+                            data-refresh-url="{% url 'newsapp:api_refresh_stock' stock.symbol %}">
+                            Refresh analysis
+                        </button>
+                        <button type="button" class="hero-action-btn" id="exportChartBtn">Export chart</button>
+                        {% if request.user.is_authenticated %}
+                            <button
+                                type="button"
+                                class="hero-action-btn {% if in_watchlist %}active{% endif %}"
+                                id="watchlistToggleBtn"
+                                data-symbol="{{ stock.symbol }}"
+                                data-in-watchlist="{{ in_watchlist|yesno:'true,false' }}"
+                            >
+                                {% if in_watchlist %}In watchlist{% else %}Add to watchlist{% endif %}
+                            </button>
+                        {% else %}
+                            <a href="{% url 'newsapp:login' %}" class="hero-action-btn">Sign in for watchlist</a>
+                        {% endif %}
+                    </div>
+                    <div class="hero-actions-note">Refreshes quote, news, intraday prices, daily prices, and the saved model snapshot for this stock.</div>
+                </div>
+            </div>
+        </section>
+
+        <section class="stats-strip mb-4">
+            {% for stat in price_stats %}
+                <div class="stat-card shadow-sm">
+                    <div class="stat-label">{{ stat.label }}</div>
+                    <div class="stat-value">{{ stat.value }}</div>
+                    <div class="stat-note">{{ stat.note }}</div>
+                </div>
+            {% endfor %}
+        </section>
+
+        <section class="chart-shell shadow-sm mb-4">
+            <div class="chart-header-row">
+                <div>
+                    <div class="section-overline">Price module</div>
+                    <h2 class="section-title mb-1">Price Chart</h2>
+                    <div class="section-subtitle">Track price action, overlay technical signals, and export the current view.</div>
+                </div>
+                <div class="chart-status-group">
+                    <span class="meta-chip {{ market_snapshot.tone|default:'neutral' }}">{{ market_snapshot.label }}</span>
+                    <span class="meta-chip">{{ selected_range }}</span>
+                    <span class="meta-chip">{{ selected_chart_mode|title }}</span>
+                    <span class="meta-chip">ET chart time</span>
+                </div>
+            </div>
+
+            <div class="chart-toolbar">
+                <div class="range-toolbar">
+                    {% for item in range_options %}
+                        <a href="?range={{ item }}&chart={{ selected_chart_mode }}" class="range-pill {% if selected_range == item %}active{% endif %}">
+                            {{ item }}
+                        </a>
+                    {% endfor %}
+                </div>
+
+                <div class="chart-actions">
+                    <div class="chart-mode-toolbar">
+                        {% for value, label in chart_mode_options %}
+                            <a href="?range={{ selected_range }}&chart={{ value }}" class="chart-mode-pill {% if selected_chart_mode == value %}active{% endif %}">
+                                {{ label }}
+                            </a>
+                        {% endfor %}
+                    </div>
+
+                    <div class="indicator-dropdown">
+                        <button type="button" class="indicator-btn" id="indicatorToggle">
+                            <span id="indicatorLabel">Indicators</span>
+                            <span class="indicator-caret">▾</span>
+                        </button>
+                        <div class="indicator-menu" id="indicatorMenu">
+                            {% for indicator in chart_indicator_options %}
+                                <label class="indicator-option">
+                                    <input type="checkbox" class="indicator-check" value="{{ indicator }}">
+                                    <span>{{ indicator }}</span>
+                                </label>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="stockChartWrap">
+                {{ chart|safe }}
+            </div>
+        </section>
+
+        <section class="row g-4 mb-4">
+            {% for item in analysis_items %}
+                <div class="col-md-4">
+                    <div class="insight-card shadow-sm {{ item.tone }}">
+                        <div class="insight-label">{{ item.title }}</div>
+                        <div class="insight-value">{{ item.value }}</div>
+                        <div class="insight-note">{{ item.caption }}</div>
+                    </div>
+                </div>
+            {% endfor %}
+        </section>
+
+        <section class="explanation-card shadow-sm mb-5">
+            <div class="d-flex flex-column flex-lg-row justify-content-between gap-3 mb-3">
+                <div>
+                    <div class="section-overline">Model context</div>
+                    <h3 class="section-title section-title-sm mb-1">Why the model leans this way</h3>
+                    <div class="section-subtitle">A readable summary of the most important price, news, and market cues.</div>
+                </div>
+                <div class="meta-chip {{ prediction_explainer.confidence_tone }}">{{ prediction_explainer.confidence_label }}</div>
+            </div>
+
+            <p class="explanation-copy mb-3">{{ prediction_explainer.summary }}</p>
+
+            <div class="driver-chip-row">
+                {% for driver in prediction_explainer.drivers %}
+                    <span class="driver-chip {{ driver.tone }}">{{ driver.label }}</span>
+                {% empty %}
+                    <span class="driver-chip neutral">No driver details available.</span>
+                {% endfor %}
+            </div>
+
+            <div class="model-disclaimer mt-3">
+                Threshold: {{ prediction_explainer.threshold|default:'N/A' }} · Up probability is produced by the production sequence model using the trained feature set.
+            </div>
+        </section>
+
+        <section class="news-section-wrapper">
+            <div class="section-heading-row mb-3">
+                <div>
+                    <div class="section-overline">News intelligence</div>
+                    <h3 class="mb-0 fw-bold">Recent News for {{ stock.symbol }}</h3>
+                </div>
+                <span class="section-chip">Scored for sentiment and relevance</span>
+            </div>
+
+            {% for article in news_cards %}
+                <article class="news-card shadow-sm mb-3">
+                    <div class="row g-0 align-items-stretch">
+                        {% if article.image_url %}
+                            <div class="col-md-3 news-image-col">
+                                <img src="{{ article.image_url }}" alt="{{ article.headline }}" class="news-img" onerror="this.onerror=null;this.src='{{ article.fallback_image_url|escapejs }}';">
+                            </div>
+                        {% endif %}
+
+                        <div class="{% if article.image_url %}col-md-9{% else %}col-12{% endif %}">
+                            <div class="news-content">
+                                <div class="news-top-row">
+                                    <div class="news-badge-row">
+                                        <span class="news-badge {{ article.sentiment_tone }}">{{ article.sentiment_label }}</span>
+                                        <span class="news-badge neutral">{{ article.relevance_label }}</span>
+                                        <span class="news-badge neutral">{{ article.confidence_pct }}% confidence</span>
+                                        {% if article.in_model_window %}
+                                            <span class="news-badge info">Model window</span>
+                                        {% endif %}
+                                    </div>
+                                    <small class="text-muted">{{ article.published_at|date:"M d, Y H:i" }} UTC</small>
+                                </div>
+
+                                <h4 class="news-title">{{ article.headline }}</h4>
+
+                                <div class="news-meta mb-2">
+                                    <span>{{ article.source }}</span>
+                                    <span>•</span>
+                                    <span>{{ article.category|title }}</span>
+                                </div>
+
+                                <p class="news-summary">{{ article.summary|truncatewords:42 }}</p>
+
+                                <div class="news-actions-row">
+                                    <a href="{{ article.url }}" target="_blank" rel="noopener noreferrer" class="news-link-btn">Read full article</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </article>
+            {% empty %}
+                <div class="empty-card shadow-sm">
+                    No recent Finnhub news found for this stock.
+                </div>
+            {% endfor %}
+        </section>
+    </div>
+
+    <script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const plot = document.querySelector("#stockChartWrap .js-plotly-plot");
+        const menu = document.getElementById("indicatorMenu");
+        const toggleBtn = document.getElementById("indicatorToggle");
+        const indicatorLabel = document.getElementById("indicatorLabel");
+        const checks = Array.from(document.querySelectorAll(".indicator-check"));
+        const symbol = "{{ stock.symbol }}";
+        const indicatorStorageKey = `stock-indicators-${symbol}`;
+
+        function selectedTraceIndexes() {
+            if (!plot || !plot.data) return [];
+            return checks
+                .map((checkbox) => ({ checkbox, idx: plot.data.findIndex(trace => trace.name === checkbox.value) }))
+                .filter(item => item.idx !== -1);
+        }
+
+        function updateIndicatorLabel() {
+            const count = checks.filter(checkbox => checkbox.checked).length;
+            indicatorLabel.textContent = count ? `Indicators (${count})` : "Indicators";
+        }
+
+        function saveIndicatorState() {
+            const selected = checks.filter(checkbox => checkbox.checked).map(checkbox => checkbox.value);
+            localStorage.setItem(indicatorStorageKey, JSON.stringify(selected));
+            updateIndicatorLabel();
+        }
+
+        function applyIndicatorState() {
+            if (!plot || typeof Plotly === "undefined") return;
+            let saved = [];
+            try {
+                saved = JSON.parse(localStorage.getItem(indicatorStorageKey) || "[]");
+            } catch (e) {
+                saved = [];
+            }
+            const traces = selectedTraceIndexes();
+            traces.forEach(({ checkbox, idx }) => {
+                const checked = saved.includes(checkbox.value);
+                checkbox.checked = checked;
+                Plotly.restyle(plot, { visible: checked ? true : "legendonly" }, [idx]);
+            });
+            updateIndicatorLabel();
+        }
+
+        if (toggleBtn && menu) {
+            toggleBtn.addEventListener("click", function (event) {
+                event.stopPropagation();
+                menu.classList.toggle("show");
+            });
+            document.addEventListener("click", function (event) {
+                if (!menu.contains(event.target) && !toggleBtn.contains(event.target)) {
+                    menu.classList.remove("show");
+                }
+            });
+        }
+
+        if (plot) {
+            setTimeout(applyIndicatorState, 150);
+            checks.forEach((checkbox) => {
+                checkbox.addEventListener("change", function () {
+                    const idx = plot.data.findIndex(trace => trace.name === checkbox.value);
+                    if (idx === -1 || typeof Plotly === "undefined") return;
+                    Plotly.restyle(plot, { visible: checkbox.checked ? true : "legendonly" }, [idx]);
+                    saveIndicatorState();
+                });
+            });
+        }
+
+        const exportBtn = document.getElementById("exportChartBtn");
+        if (exportBtn && plot && typeof Plotly !== "undefined") {
+            exportBtn.addEventListener("click", function () {
+                Plotly.downloadImage(plot, {
+                    format: "png",
+                    filename: `${symbol.toLowerCase()}-chart`,
+                    width: 1600,
+                    height: 900,
+                    scale: 2,
+                });
+            });
+        }
+
+        const refreshBtn = document.getElementById("refreshPageBtn");
+        if (refreshBtn) {
+            refreshBtn.addEventListener("click", function () {
+                window.location.reload();
+            });
+        }
+
+        const watchlistBtn = document.getElementById("watchlistToggleBtn");
+        if (watchlistBtn) {
+            const csrftoken = document.cookie.split('; ').find(row => row.startsWith('csrftoken='))?.split('=')[1];
+            watchlistBtn.addEventListener("click", async function () {
+                const symbol = watchlistBtn.dataset.symbol;
+                watchlistBtn.disabled = true;
+                try {
+                    const response = await fetch("{{ watchlist_api_url }}", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            ...(csrftoken ? {"X-CSRFToken": csrftoken} : {}),
+                        },
+                        body: JSON.stringify({ symbol }),
+                    });
+                    const payload = await response.json();
+                    if (payload.status === "success") {
+                        const added = payload.action === "added";
+                        watchlistBtn.textContent = added ? "In watchlist" : "Add to watchlist";
+                        watchlistBtn.classList.toggle("active", added);
+                    }
+                } catch (error) {
+                    console.error(error);
+                } finally {
+                    watchlistBtn.disabled = false;
+                }
+            });
+        }
+    });
+    </script>
+    <script>
+function getCookie(name) {
+    const cookieValue = document.cookie
+        .split("; ")
+        .find(row => row.startsWith(name + "="));
+    return cookieValue ? decodeURIComponent(cookieValue.split("=")[1]) : "";
+}
+
+document.addEventListener("DOMContentLoaded", function () {
+    const refreshBtn = document.getElementById("refreshAnalysisBtn");
+    const refreshNote = document.getElementById("refreshAnalysisNote");
+
+    if (refreshBtn) {
+        refreshBtn.addEventListener("click", async function () {
+            const url = refreshBtn.dataset.refreshUrl;
+            if (!url) return;
+
+            refreshBtn.disabled = true;
+            refreshBtn.textContent = "Refreshing...";
+            if (refreshNote) {
+                refreshNote.textContent = "Queued. The page will reload after the refresh starts.";
+            }
+
+            try {
+                const response = await fetch(url, {
+                    method: "POST",
+                    headers: {
+                        "X-CSRFToken": getCookie("csrftoken"),
+                    },
+                    credentials: "same-origin",
+                });
+
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.message || "Refresh failed.");
+                }
+
+                setTimeout(() => window.location.reload(), 5000);
+            } catch (error) {
+                if (refreshNote) refreshNote.textContent = error.message || "Refresh failed.";
+                refreshBtn.disabled = false;
+                refreshBtn.textContent = "Refresh analysis";
+            }
+        });
+    }
+});
+</script>
+</body>
+</html>

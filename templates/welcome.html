@@ -1,0 +1,119 @@
+<!DOCTYPE HTML>
+{% load static %}
+<html>
+	<head>
+		<title>MoodStock</title>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+		<link rel="stylesheet" href="{% static 'assets/css/main.css' %}" />
+		<noscript><link rel="stylesheet" href="{% static 'assets/css/noscript.css' %}" /></noscript>
+	</head>
+	<body class="is-preload">
+
+		<div id="wrapper">
+
+				<header id="header">
+						<div class="logo">
+							<span class="icon fa-gem"></span>
+						</div>
+						<div class="content">
+							<div class="inner">
+								<h1>Welcome to MoodStock</h1>
+								<p>Our website will help investors in following companies news and predicting stock prices<br />
+								using AI technologies.</p>
+							</div>
+						</div>
+						<nav>
+					<ul>
+						<li><a href="{% url 'newsapp:login' %}">Log in</a></li>
+						<li><a href="{% url 'newsapp:signup' %}">Sign Up</a></li>
+						<li><a href="#about">About</a></li>
+						<li><a href="#support">Support</a></li>
+					</ul>
+				</nav>
+					</header>
+
+				<div id="main">
+
+						<article id="log-in">
+    <h3>Log In</h3>
+    <form method="post" action="{% url 'newsapp:login' %}"> 
+        {% csrf_token %}
+        {{ form.as_p }} 
+        <ul class="actions">
+            <li><input type="submit" value="Log In" class="primary" /></li>
+        </ul>
+    </form>
+    <p class="mt-3">New user? <a href="#sign-up">Sign up</a></p>
+</article>
+
+<article id="sign-up">
+    <h3>Sign Up</h3>
+    <form method="post" action="{% url 'newsapp:signup' %}"> 
+        {% csrf_token %}
+        {{ form.as_p }} 
+        <ul class="actions">
+            <li><input type="submit" value="Register" class="primary" /></li>
+        </ul>
+    </form>
+    <p class="mt-3">Already have an account? <a href="#log-in">Log in</a></p>
+</article>
+
+
+
+						<article id="about">
+								<h2 class="major">About</h2>
+								<span class="image main"><img src="{% static 'images/pic03.jpg' %}" alt="" /></span>
+								<p>Our website helps investors make informed decisions in selecting the right stock by providing news and utilizing AI technologies to predict stock prices, making the process faster.</p>
+							</article>
+						<article id="support">
+								<h2 class="major">Support</h2>
+								<span class="image main"><img style="height:300px" src="{% static 'images/pic02.jpg' %}" alt="" /></span>
+								<p>If you need any help our team is available 24/7.<br>Just send us your questions in the message box or contact us on our socials down below.</p>
+									<form method="post" action="#">
+										<div class="fields">
+											<div class="field half">
+												<label for="name">Name</label>
+											</div>
+											<div style="margin-bottom:20px" class="field">
+												<label for="message">Message</label>
+												<textarea name="message" id="message" rows="2"></textarea>
+											</div>
+										</div>
+										<ul class="actions">
+											<li><input type="submit" value="Send Message" class="primary" /></li>
+											<li><input type="reset" value="Reset" /></li>
+										</ul>
+									</form>
+								<ul class="icons">
+									<li><a href="#" class="icon brands fa-twitter"><span class="label">Twitter</span></a></li>
+									<li><a href="#" class="icon brands fa-facebook-f"><span class="label">Facebook</span></a></li>
+									<li><a href="#" class="icon brands fa-instagram"><span class="label">Instagram</span></a></li>
+									<li><a href="#" class="icon brands fa-github"><span class="label">GitHub</span></a></li>
+								</ul>
+
+							</article>
+
+
+					</div>
+
+				<footer id="footer">
+						<p class="copyright">&copy; 🐭🪱🌚</p>
+					</footer>
+
+			</div>
+
+		<div id="bg"></div>
+
+		<script src="{% static 'assets/js/jquery.min.js' %}"></script>
+			<script src="{% static 'assets/js/browser.min.js' %}"></script>
+			<script src="{% static 'assets/js/breakpoints.min.js' %}"></script>
+			<script src="{% static 'assets/js/util.js' %}"></script>
+			<script src="{% static 'assets/js/main.js' %}"></script>
+
+	<div id="modal-opener-helper" data-show-modal="{{ show_modal|default:'' }}" style="display: none;"></div>
+{% if show_modal %}
+    <div id="django-modal-helper" data-modal-id="{{ show_modal }}" style="display:none;"></div>
+{% endif %}
+	</body>
+</html>

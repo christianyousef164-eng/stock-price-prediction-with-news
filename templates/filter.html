@@ -1,0 +1,114 @@
+{% comment %} <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+    <div class="top-bar">
+        <div>
+            <img src="/static/logo.png">
+            <a href="{{url_for('hello_word3')}}"><h1>MoodStock</h1></a>
+
+        </div>
+        <div class="anchor-row">
+            <a href="#">Investing</a>
+            <a href="#">Business</a>
+            <a href="#">Markets</a>
+            <a href="#">Tech</a>
+            <a href="#"> Politics</a>
+        </div>
+        <i class="fas fa-search icon"></i>
+    </div>
+    <div class="bo">
+    <div class="container-row">
+      {% for container in containers %}
+      <div class="container-down">
+          <div class="row">
+              <div class="symbol">{{ container['symbol'] }}</div>
+              <div class="price">{{ container['price'] }}</div>
+          </div>
+          <div class="row">
+              <span class="arrow-up"></span>
+              <div class="change">{{ container['change'] }}</div>
+              <div class="percentage">{{ container['percentage'] }}</div>
+          </div>
+          <div class="row">
+              <div class="last-update">{{ container['last_update'] }}</div>
+          </div>
+      </div>
+      {% endfor %}
+    </div>
+    <hr>
+        <div class="news-buttons">
+                <h3>filter:</h3>
+                {% for btn in btns %}
+                <a href="{{btn}}">{{btn}}</a>
+                {% endfor %}
+            </div>
+
+              <div class="big-container">
+
+                  <div class="News">
+                {% for new in news %}
+                     {% if  new['urlToImage'] != None and new['content'] != None  %}
+                <div class="news-container {{new['model_result']}}">
+                        <img src="{{new['urlToImage']}}" alt="">
+                        <a href="{{new['url']}}"> <h2 class="headline">{{new['title']}}</h2></a>
+                        <span>author: {{new['author']}} <br> AI:{{new['model_result_op']}} </span>
+                        <p>{{new['content']}}</p>
+                </div>
+                    {% endif %}
+                {% endfor %}
+                  </div>
+                  <div class="side">
+                      <div class="item 1">
+                          <div>
+                              <h1>Syrian Pound</h1>
+                              <hr>
+                              <p>EUR: {{SYP["results"]["EUR"]}} SP</p>
+                              <hr>
+                              <p>AED: {{SYP["results"]["AED"]}} SP</p>
+                              <hr>
+                              <p>KWD: {{SYP["results"]["KWD"]}} SP</p>
+                              <hr>
+                              <p>USD:{{SYP["results"]["USD"]}} SP</p>
+                          </div>
+                      </div>
+                      <div class="item 2">
+                          <div>
+                              <h1>United States Dollar </h1>
+                              <hr>
+                              <p>EUR: {{USD["results"]["EUR"]}} $</p>
+                              <hr>
+                              <p>SYP:{{USD["results"]["SYP"]}} $</p>
+                              <hr>
+                              <p>AED: {{USD["results"]["AED"]}} $</p>
+                              <hr>
+                              <p>KWD: {{USD["results"]["KWD"]}} $</p>
+                          </div>
+                      </div>
+                      <div class="item 3">
+                          <div>
+                              <h1>Chinese Yuan</h1>
+                              <hr>
+                              <p>EUR: {{CNY["results"]["EUR"]}} ¥</p>
+                              <hr>
+                              <p>SYP: {{CNY["results"]["SYP"]}} ¥</p>
+                              <hr>
+                              <p>AED: {{CNY["results"]["AED"]}} ¥</p>
+                              <hr>
+                              <p>USD: {{CNY["results"]["USD"]}} ¥</p>
+                          </div>
+                      </div>
+                  </div>
+S
+
+           </div>
+    </div>
+
+</body>
+</html> {% endcomment %}

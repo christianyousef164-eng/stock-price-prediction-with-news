@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MoodStock · Market Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <link rel="stylesheet" href="{% static 'assets/css/style.css' %}">
+</head>
+<body class="dashboard-body">
+    {% csrf_token %}
+
+    <nav class="navbar navbar-expand-lg navbar-dark dashboard-nav fixed-top">
+        <div class="container-fluid dashboard-shell">
+            <a class="navbar-brand brand-mark" href="{% url 'newsapp:newspage' %}">
+                <span class="brand-icon"><i class="fas fa-chart-line"></i></span>
+                <span>MoodStock</span>
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse" id="navbarSupportedContent">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0 nav-pill-group">
+                    <li class="nav-item"><a class="nav-link active" href="{% url 'newsapp:newspage' %}">Dashboard</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#watchlist-section">Watchlist</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#news-section">News feed</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#market-tools">Market tools</a></li>
+                </ul>
+
+                <div class="nav-right-group">
+                    <button class="nav-watchlist-btn" id="openStockList" type="button">
+                        <i class="fas fa-plus-circle me-2"></i>Manage watchlist
+                    </button>
+                    {% if user.is_authenticated %}
+                        <div class="nav-user-chip">Hi, {{ user.username }}</div>
+                        <form id="logout-form" method="post" action="{% url 'newsapp:logout' %}" class="d-inline">
+                            {% csrf_token %}
+                            <button class="nav-link logout-btn" type="submit">Logout</button>
+                        </form>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="dashboard-main">
+        <div class="dashboard-shell">
+            <section class="hero-card dashboard-card">
+                <div class="row g-4 align-items-start">
+                    <div class="col-xl-8">
+                        <div class="hero-overline">Market dashboard / AI watchlist intelligence</div>
+                        <div class="d-flex flex-wrap align-items-center gap-3 mb-3">
+                            <h1 class="hero-title mb-0">Follow your watchlist with a cleaner market narrative.</h1>
+                        </div>
+                        <p class="hero-copy mb-4">
+                            Track your saved stocks, scan the latest news tied to your watchlist, and jump directly into each symbol’s deeper analysis page.
+                            The dashboard keeps the same visual language as the stock detail view so the app feels like one connected product.
+                        </p>
+
+                        <div class="hero-chip-row mb-4">
+                            <span class="meta-chip {{ market_snapshot.tone }}"><i class="fas fa-clock me-2"></i>Market {{ market_snapshot.label }}</span>
+                            <span class="meta-chip neutral"><i class="far fa-calendar-alt me-2"></i>{{ market_snapshot.detail }}</span>
+                            <span class="meta-chip info"><i class="fas fa-sync-alt me-2"></i>Quotes synced {{ market_snapshot.updated_utc }}</span>
+                            <span class="meta-chip neutral"><i class="fas fa-globe-americas me-2"></i>{{ market_snapshot.timezone_note }}</span>
+                        </div>
+
+                        <div class="hero-actions-row">
+                            <button
+                                type="button"
+                                class="hero-refresh-btn"
+                                id="refreshDashboardBtn"
+                                data-refresh-url="{% url 'newsapp:api_refresh_dashboard' %}"
+                            >
+                                <i class="fas fa-rotate-right me-2"></i>
+                                <span>Refresh dashboard</span>
+                            </button>
+
+                            <p class="hero-refresh-note mb-0" id="refreshDashboardNote">
+                                Updates quotes, watchlist news, intraday prices, and saved prediction snapshots.
+                            </p>
+                        </div>
+
+          
+
+                        <div class="stats-strip hero-stats-strip">
+                            <div class="stat-card compact-stat">
+                                <div class="stat-label">Tracked symbols</div>
+                                <div class="stat-value">{{ watchlist_count }}</div>
+                                <div class="stat-note">Stocks currently in your watchlist</div>
+                            </div>
+                            <div class="stat-card compact-stat">
+                                <div class="stat-label">Positive movers</div>
+                                <div class="stat-value positive">{{ positive_watchlist_count }}</div>
+                                <div class="stat-note">Watchlist names trading higher</div>
+                            </div>
+                            <div class="stat-card compact-stat">
+                                <div class="stat-label">Negative movers</div>
+                                <div class="stat-value negative">{{ negative_watchlist_count }}</div>
+                                <div class="stat-note">Watchlist names trading lower</div>
+                            </div>
+                            <div class="stat-card compact-stat">
+                                <div class="stat-label">News items</div>
+                                <div class="stat-value">{{ articles|length }}</div>
+                                <div class="stat-note">Relevant headlines shown below</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-xl-4">
+                        <div class="hero-actions-panel h-100">
+                            <div class="hero-actions-title">Quick actions</div>
+                            <div class="hero-actions-grid">
+                                <a href="#watchlist-section" class="hero-action-btn">View watchlist</a>
+                                <a href="#news-section" class="hero-action-btn">Read the feed</a>
+                                {% if containers %}
+                                    <a href="{% url 'newsapp:stock_detail' containers.0.symbol %}" class="hero-action-btn">Open {{ containers.0.symbol }}</a>
+                                {% else %}
+                                    <button type="button" id="openStockListHero" class="hero-action-btn">Add symbols</button>
+                                {% endif %}
+                                <a href="#market-tools" class="hero-action-btn">Market tools</a>
+                            </div>
+                            <p class="hero-actions-note mb-0">
+                                Use the dashboard for broad awareness, then open each stock page for the full chart, model signal, and news explanation.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section-block" id="watchlist-section">
+                <div class="section-header d-flex flex-wrap justify-content-between align-items-end gap-3">
+                    <div>
+                        <div class="section-overline">Watchlist snapshot</div>
+                        <h2 class="section-title">Your tracked names at a glance</h2>
+                        <p class="section-subtitle mb-0">These cards mirror the stock detail styling and route directly into deeper analysis.</p>
+                    </div>
+                    <button class="section-chip action-chip" id="openStockListSecondary" type="button">
+                        <i class="fas fa-plus-circle me-2"></i>Update symbols
+                    </button>
+                </div>
+
+                {% if containers %}
+                    <div class="watchlist-grid mt-4">
+                        {% for container in containers %}
+                            <a href="{% url 'newsapp:stock_detail' container.symbol %}" class="watchlist-card stock-card-link {{ container.change_direction_class }}">
+                                <div class="watchlist-card-top">
+                                    <div>
+                                        <div class="watchlist-symbol">{{ container.symbol }}</div>
+                                        <div class="watchlist-company">{{ container.company_name|default:"Tracked company" }}</div>
+                                    </div>
+                                    <span class="watchlist-change {{ container.tone }}">{{ container.percentage }}</span>
+                                </div>
+                                <div class="watchlist-price-row">
+                                    <div class="watchlist-price">${{ container.price }}</div>
+                                    <div class="watchlist-absolute {{ container.tone }}">{{ container.change }}</div>
+                                </div>
+                                <div class="watchlist-card-bottom">
+                                    <span class="watchlist-badge {{ container.tone }}"><i class="fas {% if container.tone == 'positive' %}fa-arrow-trend-up{% elif container.tone == 'negative' %}fa-arrow-trend-down{% else %}fa-arrows-left-right{% endif %} me-2"></i>{{ container.last_update }}</span>
+                                    <span class="watchlist-link-text">Open details <i class="fas fa-arrow-right ms-1"></i></span>
+                                </div>
+                            </a>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="empty-card mt-4">
+                        <div class="empty-icon"><i class="far fa-star"></i></div>
+                        <h3>No watchlist symbols yet</h3>
+                        <p>Add a few stocks to turn this page into a personalized market dashboard.</p>
+                        <button type="button" class="hero-action-btn" id="openStockListEmpty">Build my watchlist</button>
+                    </div>
+                {% endif %}
+            </section>
+
+            <section class="section-block">
+                <div class="section-header d-flex flex-wrap justify-content-between align-items-end gap-3">
+                    <div>
+                        <div class="section-overline">News spotlight</div>
+                        <h2 class="section-title">What is driving the conversation</h2>
+                        <p class="section-subtitle mb-0">A lead story, quick follow-ups, and a longer feed tied to your tracked stocks.</p>
+                    </div>
+                </div>
+
+                {% if lead_article %}
+                    <div class="spotlight-grid mt-4">
+                        <article class="lead-story dashboard-card">
+                            {% if lead_article.image_url %}
+                                <div class="lead-story-image-wrap">
+                                    <img src="{{ lead_article.display_image_url }}" alt="{{ lead_article.headline }}" class="lead-story-image" onerror="this.onerror=null;this.src='{{ lead_article.fallback_image_url|escapejs }}';">
+                                </div>
+                            {% endif %}
+                            <div class="lead-story-content">
+                                <div class="news-meta-row">
+                                    <span class="news-badge info">{{ lead_article.category|default:"general"|title }}</span>
+                                    <span class="news-badge neutral">{{ lead_article.source|default:"N/A" }}</span>
+                                    <span class="news-badge neutral">{{ lead_article.published_at|date:"M j, Y · P" }}</span>
+                                </div>
+                                <a href="{{ lead_article.url }}" target="_blank" rel="noopener noreferrer" class="lead-story-link">
+                                    <h3 class="lead-story-title">{{ lead_article.headline }}</h3>
+                                </a>
+                                <p class="lead-story-summary mb-0">{{ lead_article.summary }}</p>
+                            </div>
+                        </article>
+
+                        <aside class="story-rail">
+                            {% for article in featured_articles %}
+                                <a href="{{ article.url }}" target="_blank" rel="noopener noreferrer" class="rail-story dashboard-card text-decoration-none">
+                                    <div class="rail-story-top">
+                                        <span class="news-badge neutral">{{ article.source|default:"N/A" }}</span>
+                                        <span class="rail-story-time">{{ article.published_at|date:"M j · P" }}</span>
+                                    </div>
+                                    <div class="rail-story-title">{{ article.headline }}</div>
+                                    <div class="rail-story-summary">{{ article.summary|truncatechars:120 }}</div>
+                                </a>
+                            {% empty %}
+                                <div class="empty-card compact-empty">
+                                    <p class="mb-0">More highlighted stories will appear here as new watchlist news arrives.</p>
+                                </div>
+                            {% endfor %}
+                        </aside>
+                    </div>
+                {% endif %}
+            </section>
+
+            <section class="section-block" id="news-section">
+                <div class="section-header d-flex flex-wrap justify-content-between align-items-end gap-3">
+                    <div>
+                        <div class="section-overline">Intelligence feed</div>
+                        <h2 class="section-title">Detailed news feed</h2>
+                        <p class="section-subtitle mb-0">Use this stream to scan the broader context before jumping into a single symbol page.</p>
+                    </div>
+                    <div class="section-chip">{{ articles|length }} articles in view</div>
+                </div>
+
+                <div class="content-grid mt-4">
+                    <div class="feed-column">
+                        {% for article in articles %}
+                            <article class="article-card dashboard-card">
+                                {% if article.image_url %}
+                                    <div class="article-card-image-wrap">
+                                        <img src="{{ article.display_image_url }}" alt="{{ article.headline }}" class="article-card-image" onerror="this.onerror=null;this.src='{{ article.fallback_image_url|escapejs }}';">
+                                    </div>
+                                {% endif %}
+                                <div class="article-card-body">
+                                    <div class="news-meta-row">
+                                        <span class="news-badge info">{{ article.category|default:"general"|title }}</span>
+                                        <span class="news-badge neutral">{{ article.source|default:"N/A" }}</span>
+                                        <span class="news-badge neutral">{{ article.published_at|date:"M j, Y · P" }}</span>
+                                    </div>
+                                    <a href="{{ article.url }}" target="_blank" rel="noopener noreferrer" class="article-card-link">
+                                        <h3 class="article-card-title">{{ article.headline }}</h3>
+                                    </a>
+                                    <p class="article-card-summary">{{ article.summary }}</p>
+                                    <div class="article-footer-note">Stored on site for faster detail-page analysis and watchlist context.</div>
+                                </div>
+                            </article>
+                        {% empty %}
+                            <div class="empty-card">
+                                <div class="empty-icon"><i class="far fa-newspaper"></i></div>
+                                <h3>No news available yet</h3>
+                                <p>Once articles are stored in the database, they will appear here in a cleaner feed layout.</p>
+                            </div>
+                        {% endfor %}
+                    </div>
+
+                    <aside class="sidebar-column" id="market-tools">
+                        <div class="sidebar-card dashboard-card">
+                            <div class="sidebar-card-title">Market pulse</div>
+                            <div class="pulse-list">
+                                <div class="pulse-item">
+                                    <span>Session status</span>
+                                    <strong>{{ market_snapshot.label }} · {{ market_snapshot.detail }}</strong>
+                                </div>
+                                <div class="pulse-item">
+                                    <span>Positive movers</span>
+                                    <strong class="positive">{{ positive_watchlist_count }}</strong>
+                                </div>
+                                <div class="pulse-item">
+                                    <span>Negative movers</span>
+                                    <strong class="negative">{{ negative_watchlist_count }}</strong>
+                                </div>
+                                <div class="pulse-item">
+                                    <span>Watchlist names</span>
+                                    <strong>{{ watchlist_count }}</strong>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="sidebar-card dashboard-card">
+                            <div class="sidebar-card-title">Coverage mix</div>
+                            <div class="category-list">
+                                {% for item in categories|slice:":6" %}
+                                    <div class="category-item">
+                                        <div class="category-row">
+                                            <span>{{ item.category }}</span>
+                                            <strong>{{ item.count }}</strong>
+                                        </div>
+                                        <div class="category-bar"><span style="width:{% widthratio item.count articles|length 100 %}%"></span></div>
+                                    </div>
+                                {% empty %}
+                                    <p class="text-muted mb-0">Category breakdown appears when articles are available.</p>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <div class="currency-card dashboard-card p-3">
+                            <div class="sidebar-card-title">Currency converter</div>
+                            <div class="mb-3">
+                                <input type="number" id="base-amount" class="form-control converter-control mb-2" value="1">
+                                <select id="base-currency" class="form-select converter-control">
+                                    <option value="USD" selected>USD - US Dollar</option>
+                                    <option value="EUR">EUR - Euro</option>
+                                    <option value="GBP">GBP - British Pound</option>
+                                    <option value="JPY">JPY - Japanese Yen</option>
+                                    <option value="CAD">CAD - Canadian Dollar</option>
+                                    <option value="AUD">AUD - Australian Dollar</option>
+                                </select>
+                            </div>
+
+                            <div class="converter-divider"><i class="fas fa-exchange-alt"></i></div>
+
+                            <div class="mb-2">
+                                <input type="number" id="target-amount" class="form-control converter-control mb-2" readonly placeholder="Result">
+                                <select id="target-currency" class="form-select converter-control">
+                                    <option value="USD">USD - US Dollar</option>
+                                    <option value="EUR" selected>EUR - Euro</option>
+                                    <option value="GBP">GBP - British Pound</option>
+                                    <option value="JPY">JPY - Japanese Yen</option>
+                                    <option value="CAD">CAD - Canadian Dollar</option>
+                                    <option value="AUD">AUD - Australian Dollar</option>
+                                </select>
+                            </div>
+                            <p class="converter-note mb-0" id="exchange-rate-text">Fetching rates...</p>
+                        </div>
+
+                        <div class="sidebar-card dashboard-card">
+                            <div class="sidebar-card-title">How to use this page</div>
+                            <ul class="insight-list">
+                                <li>Use the watchlist cards to spot movers quickly.</li>
+                                <li>Read the spotlight section for the strongest current narrative.</li>
+                                <li>Open a stock page for charts, model signal, and detailed explanation.</li>
+                            </ul>
+                        </div>
+                    </aside>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <div id="stockListModal" class="custom-modal" data-search-url="{{ stock_search_url }}" data-watchlist-url="{{ watchlist_api_url }}">
+        <div class="custom-modal-content">
+            <div class="modal-header-custom">
+                <i class="fas fa-arrow-left back-arrow" id="backArrow"></i>
+                <h3>StockList Management</h3>
+                <span class="close-btn" id="closeModalBtn">&times;</span>
+            </div>
+            <div class="modal-search-bar p-3">
+                <input type="text" class="form-control" placeholder="Search for stocks..." id="stockSearchInput">
+            </div>
+            <div class="search-results-list px-3" id="searchResultsList">
+                <p class="text-muted text-center" id="stockListLoading">Start typing to search...</p>
+            </div>
+            <hr>
+            <div class="px-3">
+                <h5>My Watchlist</h5>
+                <div class="list-group watchlist-scrollable" id="currentWatchlist"></div>
+            </div>
+            <div class="modal-footer-custom p-3 text-end">
+                <button type="button" class="btn btn-secondary me-2" id="cancelChangesBtn">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveChangesBtn">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{% static 'assets/js/watchlist_modal.js' %}"></script>
+    <script src="{% static 'assets/js/currency.js' %}"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            ["openStockListHero", "openStockListSecondary", "openStockListEmpty"].forEach(function (id) {
+                const btn = document.getElementById(id);
+                const target = document.getElementById("openStockList");
+                if (btn && target) {
+                    btn.addEventListener("click", function () { target.click(); });
+                }
+            });
+        });
+    </script>
+    <script>
+function getCookie(name) {
+    const cookieValue = document.cookie
+        .split("; ")
+        .find(row => row.startsWith(name + "="));
+    return cookieValue ? decodeURIComponent(cookieValue.split("=")[1]) : "";
+}
+
+document.addEventListener("DOMContentLoaded", function () {
+    const refreshBtn = document.getElementById("refreshDashboardBtn");
+    const note = document.getElementById("refreshDashboardNote");
+
+    if (!refreshBtn) return;
+
+    refreshBtn.addEventListener("click", async function () {
+        const url = refreshBtn.dataset.refreshUrl;
+        if (!url) return;
+
+        refreshBtn.disabled = true;
+        refreshBtn.textContent = "Refreshing...";
+        if (note) note.textContent = "Queued. Give it a few seconds, then the page will reload.";
+
+        try {
+            const response = await fetch(url, {
+                method: "POST",
+                headers: {
+                    "X-CSRFToken": getCookie("csrftoken"),
+                },
+                credentials: "same-origin",
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.message || "Refresh failed.");
+            }
+
+            setTimeout(() => window.location.reload(), 5000);
+        } catch (error) {
+            if (note) note.textContent = error.message || "Refresh failed.";
+            refreshBtn.disabled = false;
+            refreshBtn.textContent = "Refresh dashboard";
+        }
+    });
+});
+</script>
+</body>
+</html>
