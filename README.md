@@ -1,72 +1,98 @@
-# MoodStock: Stock Prediction Using Prices and News
+# Stock Price Prediction With News
 
-A Django-based stock analysis dashboard that combines market data, company news, watchlists, background refresh jobs, and ML prediction snapshots for a trained stock universe.
+ML-powered stock analysis platform combining price data, news sentiment, watchlists, and interactive dashboards.
 
-## Features
+## Overview
 
-- Watchlist-driven dashboard with quotes, movers, and prediction summaries
-- Stock detail page with interactive Plotly charts and news context
-- Background refresh pipelines powered by Django Q
-- Finnhub-powered quote/news refresh with batching support
-- Historical and intraday price sync using yfinance
-- Optional FinBERT sentiment scoring for fetched articles
-- Snapshot-based or live model inference modes
+This project is a Django-based stock intelligence dashboard that combines market prices, financial news, background refresh jobs, and model-driven prediction snapshots for a curated stock universe. It is designed as both a portfolio project and a practical end-to-end ML application with a real web interface.
+
+## What the app does
+
+- lets users create and manage a stock watchlist
+- refreshes quotes, recent company news, intraday history, and prediction snapshots in the background
+- shows a dashboard with movers, watchlist context, and a detailed news feed
+- provides a stock detail page with interactive Plotly charts, range controls, and line/candlestick modes
+- stores fetched articles locally for faster browsing and follow-up analysis
+- supports optional FinBERT-based sentiment scoring for article text
+
+## Main features
+
+### Dashboard
+- watchlist summary cards
+- market pulse and coverage mix panels
+- detailed news feed tied to tracked symbols
+- quick refresh actions backed by Django Q
+
+### Stock detail page
+- interactive Plotly chart
+- chart range controls such as M1 and longer windows
+- chart mode switch between line and candlestick views
+- company profile summary
+- symbol-specific news and prediction snapshot
+
+### Data and ML pipeline
+- Finnhub-based company news and quote refresh
+- yfinance-based historical and intraday price sync
+- batched refresh jobs to avoid slow per-symbol sleeps
+- snapshot-based prediction flow with optional live inference mode
+- optional FinBERT scoring for sentiment enrichment
 
 ## Tech stack
 
-- Python 3.11+
+- Python
 - Django
 - Django Q
 - Finnhub API
 - yfinance
 - pandas / numpy
 - Plotly
-- TensorFlow
-- transformers (FinBERT)
+- TensorFlow / Keras
+- transformers
 
 ## Project structure
 
 ```text
-news4/                 # Django project package
-news/                  # Django app package
-templates/             # HTML templates
-static/                # CSS / JS assets
-model_artifacts/       # Model files and metadata (see below)
-manage.py
-load_stocks.py
+news4/                  Django project settings and URLs
+news/                   Main app: models, views, tasks, ML integration
+templates/              HTML templates
+static/                 CSS, JS, images, icons, fonts
+model_artifacts/        Model metadata and inference assets
+manage.py               Django entry point
+load_stocks.py          Loads the supported stock universe
 ```
 
-## Required model artifacts
+## Requirements
 
-The ML parts of this project expect these files to exist either in `model_artifacts/` or at the project root:
+- Python 3.11+
+- pip
+- a virtual environment
+- optional: Finnhub API key for live company news and quote refresh
 
-- `model_metadata.json`
-- `company_to_idx.json`
-- `ticker_to_company_id.json`
-- `feature_scaler.pkl`
-- `final_stock_model.keras`
+Install dependencies:
 
-If you do not want to publish the large/private artifacts, keep them out of Git and document how to obtain them.
+```bash
+pip install -r requirements.txt
+```
 
 ## Environment variables
 
-This project reads configuration from shell environment variables and now also supports loading a local `.env` file.
+Create a local `.env` from `.env.example` and fill in the values you need.
 
-Copy `.env.example` to `.env` and update the values.
+Core variables:
 
-Key variables:
-
-- `DJANGO_SECRET_KEY`
-- `DJANGO_DEBUG`
-- `DJANGO_ALLOWED_HOSTS`
-- `FINNHUB_API_KEY`
-- `USE_FINBERT`
-- `ENABLE_LIVE_PREDICTION`
-- `ENABLE_NEWS_SENTIMENT_ON_PAGE`
-- `ENABLE_COMPANY_PROFILE_FETCH`
-- `ALLOW_PRICE_NETWORK_FALLBACK`
-- `FINNHUB_BATCH_SIZE`
-- `FINNHUB_BATCH_PAUSE_SECONDS`
+```env
+DJANGO_SECRET_KEY=change-me
+DJANGO_DEBUG=True
+DJANGO_ALLOWED_HOSTS=127.0.0.1,localhost
+FINNHUB_API_KEY=
+USE_FINBERT=1
+ENABLE_LIVE_PREDICTION=0
+ENABLE_NEWS_SENTIMENT_ON_PAGE=0
+ENABLE_COMPANY_PROFILE_FETCH=1
+ALLOW_PRICE_NETWORK_FALLBACK=0
+FINNHUB_BATCH_SIZE=5
+FINNHUB_BATCH_PAUSE_SECONDS=0.15
+```
 
 ## Local setup
 
@@ -78,13 +104,11 @@ python -m venv .venv
 pip install --upgrade pip
 pip install -r requirements.txt
 Copy-Item .env.example .env
-python manage.py makemigrations
 python manage.py migrate
 python load_stocks.py
-python manage.py createsuperuser
 ```
 
-Start the app in two terminals:
+Run the app in two terminals:
 
 ```powershell
 python manage.py runserver
@@ -102,13 +126,11 @@ source .venv/bin/activate
 pip install --upgrade pip
 pip install -r requirements.txt
 cp .env.example .env
-python manage.py makemigrations
 python manage.py migrate
 python load_stocks.py
-python manage.py createsuperuser
 ```
 
-Start the app in two terminals:
+Run the app in two terminals:
 
 ```bash
 python manage.py runserver
@@ -118,28 +140,57 @@ python manage.py runserver
 python manage.py qcluster
 ```
 
-## Fresh-clone smoke test
+## Typical workflow
 
-Before publishing, verify a clean clone can do the following:
+1. start the Django server
+2. start the Django Q worker with `qcluster`
+3. open the dashboard at `/news/`
+4. add symbols to the watchlist
+5. trigger refresh actions or wait for scheduled jobs
+6. open `/stock/<SYMBOL>/` for detailed chart and article context
 
-1. `pip install -r requirements.txt`
-2. `python manage.py check`
-3. `python manage.py migrate`
-4. `python load_stocks.py`
-5. `python manage.py runserver`
-6. `python manage.py qcluster`
-7. Open `/news/` and a `/stock/<SYMBOL>/` page
+## Model artifacts
 
-## Notes for GitHub
+The project expects model-related assets to be available in `model_artifacts/`. Depending on how you publish the repository, this can include metadata, lookup files, scalers, and model weights.
 
-- Do **not** commit `.env`, `db.sqlite3`, `__pycache__/`, `.venv/`, or generated `staticfiles/`
-- If your model weights are large, use Git LFS or keep them out of the repo
-- Include your `news/migrations/` files in the repository
-- Add screenshots to `README.md` after the first push if you want a stronger portfolio presentation
+If you do not want to publish large or private artifacts, keep them out of Git and document how they can be regenerated or obtained.
 
-## Suggested README improvements after first push
+## Known limitations
 
-- Add screenshots/GIFs of dashboard and stock detail page
-- Add a short architecture diagram
-- Add a "Known limitations" section
-- Add a "Roadmap" section
+- live quote and company-news refresh depend on a valid Finnhub API key
+- optional ML artifacts may be required for full prediction functionality
+- background refresh jobs require `python manage.py qcluster` to be running
+- this repository is configured for local development first, not production deployment
+
+## Roadmap
+
+- improve article-image handling for low-quality source thumbnails
+- add tests for refresh jobs and prediction flows
+- add a deployment recipe for a cloud host
+- improve README screenshots and architecture diagrams
+- add stronger validation for missing model artifacts and API configuration
+
+## Screenshots
+
+Add screenshots to this section after publishing so visitors can immediately see the UI.
+
+Suggested images:
+- dashboard overview
+- stock detail chart view
+- news feed view
+- watchlist modal
+
+## Why this project matters
+
+This repository demonstrates an end-to-end ML product workflow:
+
+- data ingestion
+- feature preparation
+- model-backed inference
+- asynchronous background jobs
+- persistence in Django models
+- a usable interactive front end
+
+## License
+
+Add a license file if you want others to reuse or extend the code. MIT is a common choice for portfolio projects.
